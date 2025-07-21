@@ -1,0 +1,17 @@
+server:
+  port: 9090
+
+  logging:
+    level:
+      org.apache.camel: DEBUG
+
+config:
+  endpoints:
+    - name: s1
+      url: http://localhost:8081/api/source1
+    - name: s2
+      url: http://localhost:8081/api/source2
+    - name: s3
+      url: http://localhost:8081/api/source3
+
+

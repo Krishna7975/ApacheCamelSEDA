@@ -1,0 +1,201 @@
+- route:
+    id: api-data-aggregation
+    routeConfigurationId: defaultConfig
+    from:
+      id: from-917c
+      uri: timer
+      parameters:
+        period: 5m
+        delay: 10s
+        timerName: aggregationTrigger
+      steps:
+        - to:
+            id: to-2842
+            uri: direct
+            parameters:
+              name: fetchProducts
+        - to:
+            id: to-6df5
+            uri: direct
+            parameters:
+              name: fetchUsers
+        - to:
+            id: to-1a4f
+            uri: direct
+            parameters:
+              name: fetchPosts
+        - to:
+            id: to-0de5
+            uri: direct
+            parameters:
+              name: processAndCombine
+        - to:
+            id: to-8e04
+            uri: log
+            parameters:
+              level: INFO
+              showBody: true
+              loggerName: finalOutput
+        - to:
+            id: to-200e
+            uri: file
+            parameters:
+              fileName: combined-${date:now:yyyyMMdd-HHmmss}.json
+              directoryName: output
+- route:
+    id: fetch-products
+    routeConfigurationId: defaultConfig
+    from:
+      id: from-dbce
+      uri: direct
+      parameters:
+        name: fetchProducts
+      steps:
+        - removeHeaders:
+            id: removeHeaders-d63b
+            pattern: "*"
+        - setHeader:
+            id: setHeader-6d2a
+            name: CamelHttpMethod
+            expression:
+              constant:
+                id: constant-0241
+                expression: GET
+        - to:
+            id: to-791e
+            uri: https
+            parameters:
+              httpUri: >-
+                dummyjson.com/products?limit=20&connectTimeout=2000&socketTimeout=10000
+        - unmarshal:
+            id: unmarshal-acc9
+            json:
+              id: json-1cfd
+        - setProperty:
+            id: setProperty-0104
+            name: productsData
+            expression:
+              simple:
+                id: simple-1d85
+                expression: ${body}
+        - log:
+            id: log-1497
+            message: "Fetched Products: ${body}"
+- route:
+    id: fetch-users
+    routeConfigurationId: defaultConfig
+    from:
+      id: from-8775
+      uri: direct
+      parameters:
+        name: fetchUsers
+      steps:
+        - removeHeaders:
+            id: removeHeaders-65cb
+            pattern: "*"
+        - setHeader:
+            id: setHeader-10a2
+            name: CamelHttpMethod
+            expression:
+              constant:
+                id: constant-0195
+                expression: GET
+        - to:
+            id: to-e811
+            uri: https
+            parameters:
+              httpUri: >-
+                dummyjson.com/users?limit=20&connectTimeout=2000&socketTimeout=10000
+        - unmarshal:
+            id: unmarshal-838d
+            json:
+              id: json-ef7a
+        - setProperty:
+            id: setProperty-4e07
+            name: usersData
+            expression:
+              simple:
+                id: simple-84b0
+                expression: ${body}
+        - log:
+            id: log-ef32
+            message: "Fetched Users: ${body}"
+- route:
+    id: fetch-posts
+    routeConfigurationId: defaultConfig
+    from:
+      id: from-86d7
+      uri: direct
+      parameters:
+        name: fetchPosts
+      steps:
+        - removeHeaders:
+            id: removeHeaders-d3ed
+            pattern: "*"
+        - setHeader:
+            id: setHeader-2726
+            name: CamelHttpMethod
+            expression:
+              constant:
+                id: constant-5b76
+                expression: GET
+        - to:
+            id: to-c4a0
+            uri: https
+            parameters:
+              httpUri: >-
+                dummyjson.com/posts?limit=20&connectTimeout=2000&socketTimeout=10000
+        - unmarshal:
+            id: unmarshal-27f8
+            json:
+              id: json-8155
+        - setProperty:
+            id: setProperty-ebfe
+            name: postsData
+            expression:
+              simple:
+                id: simple-82f6
+                expression: ${body}
+        - log:
+            id: log-e2c1
+            message: "Fetched Posts: ${body}"
+- route:
+    id: process-and-combine
+    routeConfigurationId: defaultConfig
+    from:
+      id: from-1485
+      uri: direct
+      parameters:
+        name: processAndCombine
+      steps:
+        - setBody:
+            id: setBody-95d3
+            expression:
+              simple:
+                id: simple-1db5
+                expression: |
+                  {
+                    "metadata": {
+                      "generatedAt": "${date:now:yyyy-MM-dd'T'HH:mm:ssXXX}",
+                      "sourceApis": ["products", "users", "posts"]
+                    },
+                    "products": ${exchangeProperty.productsData[products]},
+                    "users": ${exchangeProperty.usersData[users]},
+                    "posts": ${exchangeProperty.postsData[posts]},
+                    "summary": {
+                      "totalProducts": ${exchangeProperty.productsData[total]},
+                      "totalUsers": ${exchangeProperty.usersData[total]},
+                      "totalPosts": ${exchangeProperty.postsData[total]}
+                    }
+                  }
+        - marshal:
+            id: marshal-03d3
+            json:
+              id: json-a21e
+              library: Jackson
+        - convertBodyTo:
+            id: convertBodyTo-7aab
+            type: java.lang.String
+        - log:
+            id: log-837b
+            message: "Combined JSON: ${body}"
